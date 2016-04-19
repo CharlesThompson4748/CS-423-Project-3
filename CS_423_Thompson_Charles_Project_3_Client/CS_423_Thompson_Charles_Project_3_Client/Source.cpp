@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 
 	memset(&server_struct, 0, sizeof server_struct);
 	server_struct.ai_family = AF_INET;
-	server_struct.ai_socktype = SOCK_DGRAM;
+	server_struct.ai_socktype = SOCK_STREAM;
 
 	//Getting server address from user
 	cout << "Enter Server IP Adress or 0 for Default Adress ";
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
 	msgNum++;
 
 	//Sending message to server
-	if (sendto(s, message, strlen(message), 0, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
+	if (send(s, message, strlen(message), 0) < 0) {
 		cout << "Send Failed " << GetLastError() << endl;
 		system("pause");
 		return 1;
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
 	while (true) {
 		do {
 			//Receive a reply from the server	
-			if ((recv_size = recvfrom(s, server_reply, 500, 0, NULL, NULL)) == SOCKET_ERROR) {
+			if ((recv_size = recv(s, server_reply, 500, 0)) == SOCKET_ERROR) {
 				cout << "recv failed" << GetLastError() << endl;
 				system("pause");
 				return 1;
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 				//Convert msg to const char*
 				message = msg.c_str();
 				//Sending message to server
-				if (sendto(s, message, strlen(message), 0, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
+				if (send(s, message, strlen(message), 0) < 0) {
 					cout << "Send Failed " << GetLastError() << endl;
 					system("pause");
 					return 1;
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
 				msg = createMessage(userName, userBuddy, msgToSend, msgNum, 2);
 				message = msg.c_str();
 				//Sending message to server
-				if (sendto(s, message, strlen(message), 0, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
+				if (send(s, message, strlen(message), 0) < 0) {
 					cout << "Send Failed " << GetLastError() << endl;
 					system("pause");
 					return 1;
@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
 				//Convert the msg string to const char*
 				message = msg.c_str();
 				//Send message to the server
-				if (sendto(s, message, strlen(message), 0, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
+				if (send(s, message, strlen(message), 0) < 0) {
 					cout << "Send Failed " << GetLastError() << endl;
 					system("pause");
 					return 1;
@@ -190,7 +190,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	//Receive a reply from the server	
-	if ((recv_size = recvfrom(s, server_reply, 500, 0, NULL, NULL)) == SOCKET_ERROR) {
+	if ((recv_size = recv(s, server_reply, 500, 0)) == SOCKET_ERROR) {
 		cout << "recv failed" << GetLastError() << endl;
 		system("pause");
 		return 1;
@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
 void Listen(void * temp){
 	int recv_size;
 	char server_reply[500];
-	if ((recv_size = recvfrom(s, server_reply, 500, 0, NULL, NULL)) == SOCKET_ERROR) {
+	if ((recv_size = recv(s, server_reply, 500, 0)) == SOCKET_ERROR) {
 		cout << "recv failed" << GetLastError() << endl;
 		system("pause");
 	}
