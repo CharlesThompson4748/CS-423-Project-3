@@ -79,9 +79,10 @@ int main(int argc, char *argv[]) {
 
 	memset(&client_addr, 0, sizeof client_addr);
 	client_addr.sin_family = AF_INET;
-	client_addr.sin_port = htons(44567);
+	client_addr.sin_port = htons(34567);
 
 	struct addrinfo peer_struct, *peer_info;
+
 	memset(&peer_struct, 0, sizeof peer_struct);
 	peer_struct.ai_family = AF_INET;
 	peer_struct.ai_family = SOCK_STREAM;
@@ -178,7 +179,12 @@ int main(int argc, char *argv[]) {
 
         //Add \0 at the end of received string string before printing	
         server_reply[recv_size] = '\0';	//puts(server_reply);
-        if(server_reply[2] != '0') {
+		if(server_reply[0] == 'E') {
+			cout << decrypt(server_reply, 5) << endl;
+
+		}
+
+        else if(server_reply[2] != '0') {
 			cout << server_reply << endl << decrypt(server_reply, 2) << endl;
         }
         else {
@@ -252,7 +258,8 @@ int main(int argc, char *argv[]) {
                 break;
             case 'q':
                 cout << "Goodbye" << endl;
-                break;
+				system("pause");
+                exit(1);
             default:
                 cout << "Invalid Entry!" << endl;
             }
@@ -263,17 +270,4 @@ int main(int argc, char *argv[]) {
 	WSACleanup();
 	system("pause");
 	return 0;
-}
-
-void Listen(void * temp){
-	cout << "In Listen Function..." << endl;
-	int recv_size;
-	char server_reply[500];
-	if ((recv_size = recv(main_socket, server_reply, 500, 0)) == SOCKET_ERROR) {
-		cout << "recv failed" << GetLastError() << endl;
-		system("pause");
-	}
-	//Add \0 at the end of received string string before printing	
-	server_reply[recv_size] = '\0';	//puts(server_reply);	
-	cout << decrypt(server_reply, 10) << endl;
 }

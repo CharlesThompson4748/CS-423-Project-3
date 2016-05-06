@@ -175,7 +175,7 @@ map <string, pair<string, string> > buildUserList(string message) {
 		item++;
 	}
 
-	for(int i = 0; i < temp.size()-2; i+3) {
+	for(int i = 0; i < temp.size(); i+3) {
 		userList.insert(pair<string, pair<string, string> >(temp[i], make_pair(temp[i+1], temp[i+2])));
 	}
 	cout << "Remaining Message " << message << endl;
