@@ -15,13 +15,12 @@
 *	string and create and encrypted string that will be
 *	returned. The decrypt() function  which takes a string 
 *	and decrpypts it using the decr character array. The 
-*	msgNumber() function which get a random 5 digit number 
-*	to be used for the ACK number for communications between
-*	the client application and the server. The createMessage()
-*	function which will take information about the user, the 
-*	im recipient, the message, the current ACK number, and
-*	the type of message and it will then create and message 
-*	according to the type of message to be sent to the server.
+*	createMessage() function which will take information 
+*	about the user, the im recipient, the message, the type 
+*	of message and the user list containing the username
+*	and socket and address information it will then create 
+*	and message according to the type of message to be sent 
+*	to the server.
 *
 ****************************************************/
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
@@ -161,6 +160,11 @@ vector<string> findUser(string userName, map <string, pair<string, string> > use
 	return userInfo;
 }
 
+/*
+*	Function to parse server user list and store it in a map of string pairs
+*	Input: String message
+*	Output: Map of string pairs
+*/
 map <string, pair<string, string> > buildUserList(string message) {
 	map <string, pair<string, string> > userList;
 	string delimiters = ";#";
@@ -168,13 +172,15 @@ map <string, pair<string, string> > buildUserList(string message) {
 	string token;
 	vector<string>temp;
 	int item = 0;
+	//Remove all delimiters and store them in a vector
 	while ((pos = message.find_first_of(delimiters)) != string::npos) {
 		token = message.substr(0, pos);
 		temp[item] = token;
 		message.erase(0, pos + delimiters.length()-1);
 		item++;
 	}
-
+	//Iterate through the vector and get usernames and associated IP and Port and store them 
+	//in a map of users
 	for(int i = 0; i < temp.size(); i+3) {
 		userList.insert(pair<string, pair<string, string> >(temp[i], make_pair(temp[i+1], temp[i+2])));
 	}

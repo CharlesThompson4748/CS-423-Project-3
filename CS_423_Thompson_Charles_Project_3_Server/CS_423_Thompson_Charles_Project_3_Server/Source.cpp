@@ -9,19 +9,18 @@
 *	04/10/2016
 *
 *	This program is a simple server application for a IM (Instant Messaging) 
-*	service that acts as an itermediate between users. This program uses the a UDP
-*	connectionless service using the getaddrinfo() method. 
+*	service that acts as an itermediate between users. This program uses the a 
+*	TCP connection oriented service using the getaddrinfo() method. 
 *
 *	When the user starts this program the server will bind a port and use its
 *	current IP for communcation. The server will then sit and wait for communication
-*	from client applications and respond according to they message type recieved. If 
+*	from client applications and respond according to the message type recieved. If 
 *	the client sends a sign on message of type 1 the server will respond with a message
 *	indicating other users that are currently logged on and broadcast to other users that 
-*	a new user has joined the IM service. If the user sends a forward message of type 2 
-*	then a message will be sent to the client indicating the message has been recieved and
-*	forward the specified message to the specified user. If the users sends a log off message
-*	of type 3 then a goodbye message will be sent to the cliend and a broadcast message will 
-*	be sent to all of logged on clients that the user is leaving the IM service.	
+*	a new user has joined the IM service. If the user sends a port number to small or
+*	large and error message will be sent. The server will also send error messages if
+*	the message header is incorrect and if the userlist is full or the username is 
+*	already in use.
 *
 ****************************************************/
 
@@ -144,34 +143,80 @@ int main(int argc, char *argv[]) {
             return 1;
 		}
 
+		//Getting user ip address info and username
+		msgInfo = parseMessage(client_reply);
+
+		//Username already exists error
+		if(findUser(decrypt(msgInfo[1], 0), userList)){
+			os << "Error:User exits"; 
+			//Creating error message
+			msg = createMessage(userName, "User exits.\n", client_port, 5, usersInfo);
+			message = msg.c_str();
+			//Sending message to user
+			if (send(newfd, message, strlen(message), 0) < 0) {
+				cout << "Send Failed " << errno << endl;
+				break;
+			}
+			client_reply[0] = '0';
+		}
+
+		//Storing client info
+		userName = msgInfo[1];
+		client_port = msgInfo[2];
+
+		//Invalid Port number error
+		if(atoi(client_port.c_str()) < 1025 || atoi(client_port.c_str()) > 65535) {
+			//Creating error message
+			msg = createMessage(userName, "Message port number is invalid. Please try again\n", client_port, 5, usersInfo);
+			message = msg.c_str();
+			//Sending message to user
+			if (send(newfd, message, strlen(message), 0) < 0) {
+				cout << "Send Failed " << errno << endl;
+				break;
+			}
+			client_reply[0] = '0';
+		}
+
 		if (!fork()) { // this is the child process
 			switch (client_reply[0]) {
 				//Signon Service
 				case '1':
-					//Getting user ip address info and username
-					msgInfo = parseMessage(client_reply);
-					userName = msgInfo[1];
-					client_port = msgInfo[2];
-					userName = decrypt(userName, 0);
-					os << " PORT: " << (char *)client_port.c_str() << " Username: " << (char *)userName.c_str();
-					usersInfo.insert(pair<string, pair<string, string> >(userName, make_pair(client_ip, client_port)));
-					cout << "\nClient Port = " << client_port << "\nUSERNAME = " << userName << endl;
+					if(userList.size() <= 5) {
+						//Getting username
+						userName = decrypt(userName, 0);
 
-					//Adding new user to users map
-					client_info = make_pair(newfd, client_addr);
-					userList.insert(pair<string, pair<int, struct sockaddr_storage> >(userName, client_info));
+						//Logging user info
+						os << " PORT: " << (char *)client_port.c_str() << " Username: " << (char *)userName.c_str() << "\n\n";
+						usersInfo.insert(pair<string, pair<string, string> >(userName, make_pair(client_ip, client_port)));
+						cout << "\nClient Port = " << client_port << "\nUSERNAME = " << userName << endl;
 
-					//Creating reply message
-					msg = createMessage(userName, "", client_port, 1, usersInfo);
-					message = msg.c_str();
-					//Sending message to user
-					if (send(newfd, message, strlen(message), 0) < 0) {
-						cout << "Send Failed " << errno << endl;
+						//Adding new user to users map
+						client_info = make_pair(newfd, client_addr);
+						userList.insert(pair<string, pair<int, struct sockaddr_storage> >(userName, client_info));
+
+						//Creating reply message
+						msg = createMessage(userName, "", client_port, 1, usersInfo);
+						message = msg.c_str();
+						//Sending message to user
+						if (send(newfd, message, strlen(message), 0) < 0) {
+							cout << "Send Failed " << errno << endl;
+							break;
+						}
+					}
+					else {
+						//Creating error message
+						msg = createMessage(userName, "Buddy List is full.\nPlease try back later.\n", client_port, 5, usersInfo);
+						message = msg.c_str();
+						//Sending message to user
+						if (send(newfd, message, strlen(message), 0) < 0) {
+							cout << "Send Failed " << errno << endl;
+							break;
+						}
 						break;
 					}
 
 					//Broadcasting signon to users
-					if(userList.size() > 0) {
+					if(userList.size() > 1) {
 						msg = createMessage(userName, client_ip, client_port, 3, usersInfo);
 						message = msg.c_str();
 						for(map<string, pair<int, struct sockaddr_storage> >::const_iterator it = userList.begin(); it != userList.end(); it++) {
@@ -182,29 +227,7 @@ int main(int argc, char *argv[]) {
 						}
 					}
 					break;
-
-				//Signoff Service
-				case '2':
-					if(findUser(userName, userList)) {
-						//Format the message to be sent 
-						msg = createMessage(userName, "", client_port, 3, usersInfo);
-						message = msg.c_str();
-						//Send message to client for signoff
-						if (send(newfd, message, strlen(message), 0) < 0) {
-							cout << "Send Failed " << errno << endl;
-							break;
-						}
-						cout << "Reply sent to user " << userName << endl;
-					}
-					else {
-						//Failed to find user to signoff
-						msg = createMessage(userName, "User Not Online", client_port, 8, usersInfo); // need to get message to be forwarded
-						message = msg.c_str();
-						if (send(newfd, message, strlen(message), 0) < 0) {
-							cout << "Send Failed " << errno << endl;
-							break;
-						}
-					}
+				default:
 					break;
 				close(newfd);
 			}

@@ -15,15 +15,17 @@
 *	string and create and encrypted string that will be
 *	returned. The decrypt() function  which takes a string 
 *	and decrpypts it using the decr character array. The 
-*	msgNumber() function which get a random 5 digit number 
-*	to be used for the ACK number for communications between
-*	the client application and the server. The createMessage()
-*	function which will take information about the user, the 
-*	im recipient, the message, the current ACK number, and
-*	the type of message and it will then create and message 
-*	according to the type of message to be sent to the server.
+*	createMessage() function which will take information 
+*	about the user, the im recipient, the message, the type 
+*	of message and the user list containing the username
+*	and socket and address information it will then create 
+*	and message according to the type of message to be sent 
+*	to the server.
 *
 ****************************************************/
+
+
+
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,6 +109,11 @@ string decrypt(string message, int length) {
 	return decryptedMsg;
 }
 
+/*
+*	Function parses client signon message
+*	Input: Client String message
+*	Output: Vector with client information
+*/
 vector<string> parseMessage(string message) {
 	vector<string> msgInfo(3);
 	string delimiters = ";#";
@@ -135,13 +142,12 @@ string createMessage(string userName, string message, string user_port, int mess
 	string msg = " ";
 	//Signon Message
 	if (messageType == 1) {
-		if (users.size() > 0) {
+		if (users.size() > 1) {
 			msg = "4;";
 			msg += users.size();
 			cout << "Message with count " << msg << endl;
 			msg += "\n";
 			for(map<string, pair<string, string> >::const_iterator it = users.begin(); it != users.end(); it++) {
-				//pair<int, string> pair = it -> second;
 				msg += encrypt(it -> first);
 				msg += ";";
 				msg += it -> second.first;
@@ -186,6 +192,7 @@ string createMessage(string userName, string message, string user_port, int mess
 	else if(messageType == 5) {
 		msg = "Error;";
 		msg += encrypt(message);
+		msg += "#";
 		cout << "Message to send " << msg << endl;
 	}
 	//Error

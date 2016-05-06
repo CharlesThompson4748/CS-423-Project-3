@@ -5,16 +5,16 @@
 *	CS 423 - Client Server Programming
 *	University of Missouri - Kansas City
 *	School of Computing and Engineering
-*	03/15/2016
+*	05/6/2016
 *
 *	This program is a simple client application for a IM 
 *	(Instant Messaging) service that uses a server as an 
-*	itermediate between users. This program uses the a UDP
-*	connectionless service using the getaddrinfo() method
-*	from the winsock2 library. The program also uses 
-*	multi-threading to listen for server responses for 
-*	messages from other users. This is achieved using the
-*	_beginthread() function from the process.h library.
+*	signon service. This program uses the a TCP connection
+*	oriented service using the getaddrinfo() method
+*	from the winsock2 library. The program uses the server
+*	to recieve a list of users that are currenly logged on 
+*	and the IP and port to use for communication with other
+*	users.
 *
 *	When the user starts this program they will be 
 *	prompted for a server and port number or the can 
@@ -46,7 +46,6 @@ int main(int argc, char *argv[]) {
 
 	//Variable decelerations
 	WSADATA wsa;
-	struct sockaddr_in server;
 	socklen_t sin_size;
 	char server_reply[500], userSelection;
 	string userName, userBuddy, msgToSend, msg, temp = "", peer_ip;
@@ -68,7 +67,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	//Creating addinfo variables
-	struct addrinfo server_struct, *servinfo, *p;
+	struct addrinfo server_struct, *servinfo;
 
 	memset(&server_struct, 0, sizeof server_struct);
 	server_struct.ai_family = AF_INET;
@@ -115,10 +114,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	cout << "Socket Created..." << endl;
-
+	//Binding socket to port
 	if (bind(main_socket, (struct sockaddr*) &client_addr, sizeof client_addr) < 0) {
 		perror("bind");
-		exit(1);
+		system("pause");
+		return 1;
 	}
 
 	cout << "Socket Bound..." << endl;
@@ -165,9 +165,7 @@ int main(int argc, char *argv[]) {
 		timeout.tv_usec = 0;
 		if(select(main_socket, &readfds, NULL, NULL, &timeout) == 1)
 		{
-		   cout << "Bef4 socket\n";
 		   main_socket = accept(main_socket , (struct sockaddr *)&peer_addr, &sin_size);  
-		   cout << "Aft3r socket\n";
 		}
 
 		//Receive a reply from the server	
@@ -181,11 +179,11 @@ int main(int argc, char *argv[]) {
         server_reply[recv_size] = '\0';	//puts(server_reply);
 		if(server_reply[0] == 'E') {
 			cout << decrypt(server_reply, 5) << endl;
-
+			server_reply[2] = '0';
 		}
 
         else if(server_reply[2] != '0') {
-			cout << server_reply << endl << decrypt(server_reply, 2) << endl;
+			cout << decrypt(server_reply, 2) << endl;
         }
         else {
             cout << server_reply << " No Users Online" << endl;
@@ -207,6 +205,7 @@ int main(int argc, char *argv[]) {
                 msg = createMessage(userName, userBuddy, msgToSend, 2);
                 message = msg.c_str();
 				buddyInfo = findUser(userBuddy, userList);
+				cout << "Getting address..." << endl;
 				//Getting server address info
 				if ((return_value = getaddrinfo(buddyInfo[1].c_str(), buddyInfo[2].c_str(), &peer_struct, &peer_info)) != 0) {
 					printf("getaddrinfo: %s\n", GetLastError());
@@ -215,12 +214,12 @@ int main(int argc, char *argv[]) {
 				cout << "Address resloved..." << endl;
 
 				//Create a socket	
-				if ((main_socket = socket(peer_info->ai_family, peer_info->ai_socktype, peer_info->ai_protocol)) == INVALID_SOCKET) {
+				if ((new_socket = socket(peer_info->ai_family, peer_info->ai_socktype, peer_info->ai_protocol)) == INVALID_SOCKET) {
 					printf("Could not create socket : %d", WSAGetLastError());
 				}
 
 				cout << "Socket Created..." << endl;
-
+				//Binding peer to new socket 
 				if (bind(new_socket, (struct sockaddr*) &client_addr, sizeof client_addr) < 0) {
 					perror("bind");
 					exit(1);
@@ -259,15 +258,12 @@ int main(int argc, char *argv[]) {
             case 'q':
                 cout << "Goodbye" << endl;
 				system("pause");
-                exit(1);
+                //Program end
+				closesocket(main_socket);
+				WSACleanup();
+				return 0;
             default:
                 cout << "Invalid Entry!" << endl;
-            }
+		}
 	}
-
-	//Program end
-	closesocket(main_socket);
-	WSACleanup();
-	system("pause");
-	return 0;
 }
