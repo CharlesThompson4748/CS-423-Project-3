@@ -33,6 +33,8 @@
 #include <ws2tcpip.h>
 #include <process.h>
 #include <Windows.h>
+#include <map>
+#include <vector>
 #pragma comment(lib, "Ws2_32")
 using namespace std;
 
@@ -101,54 +103,37 @@ string decrypt(string message, int length) {
 }
 
 /*
-*	This is function that will generate a random 5 digit
-*	number between 10000 and 90000.
-*	Input: None
-*	Output: Int that has been randomly generated
-*/
-int msgNumber () {
-	int x;
-	srand(time(NULL));
-	x = rand() % 50000 + 10000;
-	return x;
-}
-
-/*
 *	This function takes the usernames and message as well as the message number
 *	and message type and formats them for the server to recieve
 *	Input: Strings for the usernames and message, integers for the message
 *	number and message type
 *	Output: String formatted for the server to recieve
 */
-string createMessage(string userName, string buddyName, string message, int ACK, int messageType) {
+string createMessage(string userName, string buddyName, string message, int messageType) {
 	string msg = " ";
 	//Signon Message
 	if (messageType == 1) {
-		msg = to_string(ACK);
-		msg += ";1;";
-		msg += userName;
+		msg = "1;";
+		msg += userName + ";";
+		msg += "34567#";
 	}
 	//Sendto Message
 	else if (messageType == 2) {
-		msg = to_string(ACK);
-		msg += ";2;";
+		msg = "2;";
 		msg += userName;
-		buddyName += '\n';
 		msg += encrypt(buddyName);
 		message += '\n';
-		msg += encrypt(message);
+		msg += encrypt(message) + "#";
+	}
+	//Send List of Users
+	else if (messageType == 3) {
+		msg = "3;";
+		msg += message;
+		//Followed by user count\n
 	}
 	//Signoff Message
-	else if (messageType == 3) {
-		msg = to_string(ACK);
-		msg += ";3;";
-		msg += userName;
-	}
-	//Keep-Alive Message
-	else if (messageType = 4) {
-		msg = "ack;";
-		msg += to_string(ACK);
-		msg += ";";
+	else if (messageType == 4) {
+		msg = "3;";
 		msg += userName;
 	}
 	//Error
@@ -156,4 +141,58 @@ string createMessage(string userName, string buddyName, string message, int ACK,
 		cout << "Error: Message type dosn't exist" << endl;
 	}
 	return msg;
+}
+
+/*
+*	This function searches through a map of users for a specific username
+*	and returns true if the username is found.
+*	Input: Map of users and string username
+*	Output: boolean 
+*/
+vector<string> findUser(string userName, map <string, pair<string, string> > users) {
+	vector<string> userInfo(3);
+	map<string, pair<string, string> >::iterator itr;
+	itr = users.find(userName);
+	if(itr != users.end()) {
+		userInfo[0] = userName;
+		userInfo[1] = itr -> second.first;
+		userInfo[2] = itr -> second.second;
+	}
+	return userInfo;
+}
+
+map <string, pair<string, string> > buildUserList(string message) {
+	map <string, pair<string, string> > userList;
+	string delimiters = ";#";
+	size_t pos = 2;
+	string token;
+	vector<string>temp;
+	int item = 0;
+	while ((pos = message.find_first_of(delimiters)) != string::npos) {
+		token = message.substr(0, pos);
+		temp[item] = token;
+		message.erase(0, pos + delimiters.length()-1);
+		item++;
+	}
+
+	for(int i = 0; i < temp.size()-2; i+3) {
+		userList.insert(pair<string, pair<string, string> >(temp[i], make_pair(temp[i+1], temp[i+2])));
+	}
+	cout << "Remaining Message " << message << endl;
+	return userList;
+}
+
+/*
+*	This function determines what AF_INET is being used for the input
+*	sockaddr and return a value for the address.
+*	Input: struct sockaddr
+*	Output: void 
+*/
+void *get_in_addr(struct sockaddr *sa)
+{
+    if (sa->sa_family == AF_INET) {
+        return &(((struct sockaddr_in*)sa)->sin_addr);
+    }
+
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
